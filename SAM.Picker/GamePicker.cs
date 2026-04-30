@@ -697,6 +697,11 @@ namespace SAM.Picker
 
             int added = 0;
             int alreadyOwned = 0;
+            var addedGames = new System.Text.StringBuilder();
+            var ownedGames = new System.Text.StringBuilder();
+
+            addedGames.AppendLine("Открыты страницы для добавления:");
+            ownedGames.AppendLine("\nУже в библиотеке:");
 
             foreach (var game in freeGames)
             {
@@ -704,6 +709,7 @@ namespace SAM.Picker
                 if (this.OwnsGame(game.Key))
                 {
                     alreadyOwned++;
+                    ownedGames.AppendLine($"  - {game.Value}");
                     continue;
                 }
 
@@ -712,6 +718,7 @@ namespace SAM.Picker
                 {
                     Process.Start($"steam://store/{game.Key}");
                     added++;
+                    addedGames.AppendLine($"  - {game.Value}");
                     System.Threading.Thread.Sleep(500); // Задержка между открытиями
                 }
                 catch
@@ -720,12 +727,28 @@ namespace SAM.Picker
                 }
             }
 
+            // Формируем итоговое сообщение
+            var message = new System.Text.StringBuilder();
+            message.AppendLine($"Обработано игр: {freeGames.Count}");
+            message.AppendLine($"Открыто страниц: {added}");
+            message.AppendLine($"Уже в библиотеке: {alreadyOwned}");
+            message.AppendLine();
+            
+            if (added > 0)
+            {
+                message.AppendLine(addedGames.ToString());
+                message.AppendLine("\nНажмите 'Play Game' на каждой странице чтобы добавить игру!");
+            }
+            
+            if (alreadyOwned > 0)
+            {
+                message.AppendLine(ownedGames.ToString());
+            }
+
             MessageBox.Show(
                 this,
-                $"Opened {added} game pages in Steam.\n" +
-                $"Already owned: {alreadyOwned}\n\n" +
-                $"Click 'Play Game' on each page to add them to your library.",
-                "Info",
+                message.ToString(),
+                "Результат добавления игр",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
         }
