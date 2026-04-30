@@ -641,6 +641,98 @@ namespace SAM.Picker
             worker.RunWorkerAsync();
         }
 
+        private void OnAddFreeGames(object sender, EventArgs e)
+        {
+            // Подтверждение
+            if (MessageBox.Show(
+                this,
+                "This will open Steam pages for all free-to-play games that you don't own yet.\n\n" +
+                "You'll need to click 'Play Game' on each page to add them to your library.\n\n" +
+                "Continue?",
+                "Add Free Games",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question) == DialogResult.No)
+            {
+                return;
+            }
+
+            // Список популярных F2P игр с достижениями (можно расширить)
+            var freeGames = new Dictionary<uint, string>
+            {
+                // Топ F2P игры
+                { 570, "Dota 2" },
+                { 730, "Counter-Strike 2" },
+                { 440, "Team Fortress 2" },
+                { 578080, "PUBG: BATTLEGROUNDS" },
+                { 1172470, "Apex Legends" },
+                { 2357570, "Overwatch 2" },
+                { 1966720, "Deadlock" },
+                { 1599340, "Lost Ark" },
+                { 2073850, "NARAKA: BLADEPOINT" },
+                { 1938090, "Call of Duty: Warzone" },
+                { 1623730, "Palworld" },
+                
+                // MOBA и стратегии
+                { 583950, "Artifact" },
+                { 1269260, "Smite 2" },
+                { 386360, "Smite" },
+                { 813780, "Age of Empires II: Definitive Edition" },
+                
+                // Шутеры
+                { 1172380, "Star Wars: Squadrons" },
+                { 1517290, "Battlefield 2042" },
+                { 1938090, "Call of Duty: Warzone" },
+                { 1172470, "Apex Legends" },
+                { 1172620, "Sea of Thieves" },
+                
+                // MMO и RPG
+                { 1203220, "NARAKA: BLADEPOINT" },
+                { 1599340, "Lost Ark" },
+                { 1091500, "Cyberpunk 2077" },
+                { 1245620, "ELDEN RING" },
+                { 1174180, "Red Dead Redemption 2" },
+                
+                // Другие популярные
+                { 252490, "Rust" },
+                { 271590, "Grand Theft Auto V" },
+                { 359550, "Rainbow Six Siege" },
+            };
+
+            int added = 0;
+            int alreadyOwned = 0;
+
+            foreach (var game in freeGames)
+            {
+                // Проверяем владеем ли мы игрой
+                if (this.OwnsGame(game.Key))
+                {
+                    alreadyOwned++;
+                    continue;
+                }
+
+                // Открываем страницу игры в Steam
+                try
+                {
+                    Process.Start($"steam://store/{game.Key}");
+                    added++;
+                    System.Threading.Thread.Sleep(500); // Задержка между открытиями
+                }
+                catch
+                {
+                    // Игнорируем ошибки
+                }
+            }
+
+            MessageBox.Show(
+                this,
+                $"Opened {added} game pages in Steam.\n" +
+                $"Already owned: {alreadyOwned}\n\n" +
+                $"Click 'Play Game' on each page to add them to your library.",
+                "Info",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+
         private void OnGameListViewDrawItem(object sender, DrawListViewItemEventArgs e)
         {
             e.DrawDefault = true;

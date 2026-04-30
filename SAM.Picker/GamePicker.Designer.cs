@@ -84,6 +84,7 @@
             this._PickerToolStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this._RefreshGamesButton,
             this._UnlockAllGamesButton,
+            this._AddFreeGamesButton,
             _ToolStripSeparator1,
             this._AddGameTextBox,
             this._AddGameButton,
@@ -114,6 +115,15 @@
             this._UnlockAllGamesButton.Text = "Unlock All Games";
             this._UnlockAllGamesButton.ToolTipText = "Unlock ALL achievements for ALL games";
             this._UnlockAllGamesButton.Click += new System.EventHandler(this.OnUnlockAllGames);
+            //
+            // _AddFreeGamesButton
+            //
+            this._AddFreeGamesButton.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this._AddFreeGamesButton.Name = "_AddFreeGamesButton";
+            this._AddFreeGamesButton.Size = new System.Drawing.Size(110, 22);
+            this._AddFreeGamesButton.Text = "Add Free Games";
+            this._AddFreeGamesButton.ToolTipText = "Add all free-to-play games to library";
+            this._AddFreeGamesButton.Click += new System.EventHandler(this.OnAddFreeGames);
             //
             // _AddGameTextBox
             //
@@ -277,6 +287,7 @@
         private System.Windows.Forms.ToolStrip _PickerToolStrip;
         private System.Windows.Forms.ToolStripButton _RefreshGamesButton;
         private System.Windows.Forms.ToolStripButton _UnlockAllGamesButton;
+        private System.Windows.Forms.ToolStripButton _AddFreeGamesButton;
         private System.Windows.Forms.ToolStripTextBox _AddGameTextBox;
         private System.Windows.Forms.ToolStripButton _AddGameButton;
         private System.Windows.Forms.ToolStripDropDownButton _FilterDropDownButton;
