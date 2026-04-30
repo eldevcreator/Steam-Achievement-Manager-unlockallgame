@@ -31,13 +31,11 @@
             this.components = new System.ComponentModel.Container();
             System.Windows.Forms.ToolStripSeparator _ToolStripSeparator1;
             System.Windows.Forms.ToolStripSeparator _ToolStripSeparator2;
-            System.Windows.Forms.ToolStripSeparator _ToolStripSeparator3;
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Manager));
             this._MainToolStrip = new System.Windows.Forms.ToolStrip();
             this._StoreButton = new System.Windows.Forms.ToolStripButton();
             this._ReloadButton = new System.Windows.Forms.ToolStripButton();
             this._ResetButton = new System.Windows.Forms.ToolStripButton();
-            this._UnlockAllGamesButton = new System.Windows.Forms.ToolStripButton();
             this._AchievementImageList = new System.Windows.Forms.ImageList(this.components);
             this._MainStatusStrip = new System.Windows.Forms.StatusStrip();
             this._CountryStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -84,19 +82,12 @@
             _ToolStripSeparator2.Name = "_ToolStripSeparator2";
             _ToolStripSeparator2.Size = new System.Drawing.Size(6, 25);
             // 
-            // _ToolStripSeparator3
-            // 
-            _ToolStripSeparator3.Name = "_ToolStripSeparator3";
-            _ToolStripSeparator3.Size = new System.Drawing.Size(6, 25);
-            // 
             // _MainToolStrip
             // 
             this._MainToolStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this._StoreButton,
             this._ReloadButton,
-            this._ResetButton,
-            _ToolStripSeparator1,
-            this._UnlockAllGamesButton});
+            this._ResetButton});
             this._MainToolStrip.Location = new System.Drawing.Point(0, 0);
             this._MainToolStrip.Name = "_MainToolStrip";
             this._MainToolStrip.Size = new System.Drawing.Size(712, 25);
@@ -134,16 +125,6 @@
             this._ResetButton.Text = "Reset";
             this._ResetButton.ToolTipText = "Reset achievements and/or statistics for active game.";
             this._ResetButton.Click += new System.EventHandler(this.OnResetAllStats);
-            // 
-            // _UnlockAllGamesButton
-            // 
-            this._UnlockAllGamesButton.Image = global::SAM.Game.Resources.Unlock;
-            this._UnlockAllGamesButton.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this._UnlockAllGamesButton.Name = "_UnlockAllGamesButton";
-            this._UnlockAllGamesButton.Size = new System.Drawing.Size(120, 22);
-            this._UnlockAllGamesButton.Text = "Unlock All Games";
-            this._UnlockAllGamesButton.ToolTipText = "Unlock ALL achievements for ALL games in your library.";
-            this._UnlockAllGamesButton.Click += new System.EventHandler(this.OnUnlockAllGames);
             // 
             // _AchievementImageList
             // 
@@ -438,7 +419,6 @@
         private System.Windows.Forms.ToolStripButton _UnlockAllButton;
         private System.Windows.Forms.DataGridView _StatisticsDataGridView;
         private System.Windows.Forms.ToolStripButton _ResetButton;
-        private System.Windows.Forms.ToolStripButton _UnlockAllGamesButton;
         private System.Windows.Forms.ToolStripStatusLabel _DownloadStatusLabel;
         private System.Windows.Forms.ToolStripLabel _DisplayLabel;
         private System.Windows.Forms.ToolStripButton _DisplayUnlockedOnlyButton;

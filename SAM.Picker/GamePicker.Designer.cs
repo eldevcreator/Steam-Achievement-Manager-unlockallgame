@@ -108,7 +108,6 @@
             //
             // _UnlockAllGamesButton
             //
-            this._UnlockAllGamesButton.Image = global::SAM.Picker.Resources.Unlock;
             this._UnlockAllGamesButton.ImageTransparentColor = System.Drawing.Color.Magenta;
             this._UnlockAllGamesButton.Name = "_UnlockAllGamesButton";
             this._UnlockAllGamesButton.Size = new System.Drawing.Size(120, 22);
