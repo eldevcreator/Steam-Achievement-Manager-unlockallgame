@@ -678,51 +678,85 @@ namespace SAM.Picker
                     {
                         client.Headers.Add("User-Agent", "ELDEVCREATOR RU STEAM HELP");
                         
-                        // Step 1: Get list of all free Sub IDs from SteamDB
+                        // Step 1: Load Sub IDs from file or download from SteamDB
                         this.Invoke(new Action(() =>
                         {
-                            this._PickerStatusLabel.Text = "Downloading free packages list from SteamDB...";
+                            this._PickerStatusLabel.Text = "Loading free packages list...";
                         }));
                         
                         try
                         {
-                            // Try to get from SteamDB API or parse the page
-                            var steamdbPage = client.DownloadString("https://steamdb.info/freepackages/");
+                            var filePath = Path.Combine(Application.StartupPath, "FreeSubIDs.txt");
                             
-                            // Parse Sub IDs from the page
-                            var lines = steamdbPage.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                            foreach (var line in lines)
+                            // Check if file exists and is not empty
+                            if (File.Exists(filePath) && new FileInfo(filePath).Length > 0)
                             {
-                                // Look for Sub IDs in format: /sub/12345/
-                                if (line.Contains("/sub/"))
+                                // Load from existing file
+                                var lines = File.ReadAllLines(filePath);
+                                foreach (var line in lines)
                                 {
-                                    var startIdx = line.IndexOf("/sub/") + 5;
-                                    var endIdx = line.IndexOf("/", startIdx);
-                                    if (endIdx > startIdx)
+                                    var trimmed = line.Trim().TrimEnd(',');
+                                    if (uint.TryParse(trimmed, out uint subId))
                                     {
-                                        var subIdStr = line.Substring(startIdx, endIdx - startIdx);
-                                        if (uint.TryParse(subIdStr, out uint subId))
+                                        freeSubIds.Add(subId);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // File doesn't exist or is empty - download from SteamDB
+                                this.Invoke(new Action(() =>
+                                {
+                                    this._PickerStatusLabel.Text = "Downloading free packages list from SteamDB...";
+                                }));
+                                
+                                try
+                                {
+                                    var html = client.DownloadString("https://steamdb.info/freepackages/");
+                                    
+                                    // Parse Sub IDs from HTML
+                                    var matches = System.Text.RegularExpressions.Regex.Matches(html, @"/sub/(\d+)");
+                                    var uniqueIds = new HashSet<uint>();
+                                    
+                                    foreach (System.Text.RegularExpressions.Match match in matches)
+                                    {
+                                        if (uint.TryParse(match.Groups[1].Value, out uint subId))
                                         {
-                                            if (!freeSubIds.Contains(subId))
-                                            {
-                                                freeSubIds.Add(subId);
-                                            }
+                                            uniqueIds.Add(subId);
                                         }
                                     }
+                                    
+                                    freeSubIds.AddRange(uniqueIds.OrderBy(x => x));
+                                    
+                                    // Save to file for future use
+                                    if (freeSubIds.Count > 0)
+                                    {
+                                        File.WriteAllLines(filePath, freeSubIds.Select(id => id.ToString()));
+                                    }
+                                }
+                                catch
+                                {
+                                    // If download fails, use fallback list of known free packages
+                                    freeSubIds.AddRange(new uint[] { 
+                                        0, // Special ID that adds multiple packages
+                                        17906, 17907, 17908, 17909, 17910, // Common free packages
+                                        47890, 92659, 271590, 331470, 365670, 
+                                        440900, 459820, 480730, 534450, 578080
+                                    });
                                 }
                             }
                             
                             this.Invoke(new Action(() =>
                             {
-                                this._PickerStatusLabel.Text = $"Found {freeSubIds.Count} free packages!";
+                                this._PickerStatusLabel.Text = $"Loaded {freeSubIds.Count} free packages!";
                             }));
                             
-                            System.Threading.Thread.Sleep(2000);
+                            System.Threading.Thread.Sleep(1000);
                         }
                         catch
                         {
-                            // Fallback: use hardcoded list if SteamDB fails
-                            freeSubIds = new List<uint> { 0 }; // Special ID for all F2P
+                            // Final fallback
+                            freeSubIds.Add(0);
                         }
                         
                         // Step 2: Add all free packages via Steam API
