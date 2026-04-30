@@ -646,9 +646,8 @@ namespace SAM.Picker
             // Confirmation
             if (MessageBox.Show(
                 this,
-                "This will add ALL free-to-play games to your Steam library via Steam Web API.\n\n" +
+                "This will open Steam Store with free games filter and provide a script to auto-add them.\n\n" +
                 "IMPORTANT: Games will only be ADDED to library, but will NOT be downloaded!\n\n" +
-                "This may take some time.\n\n" +
                 "Continue?",
                 "Add Free Games",
                 MessageBoxButtons.YesNo,
@@ -657,116 +656,68 @@ namespace SAM.Picker
                 return;
             }
 
-            this._AddFreeGamesButton.Enabled = false;
-            this._PickerStatusLabel.Text = "Getting list of free games...";
-
-            // Run in background thread
-            var worker = new System.ComponentModel.BackgroundWorker();
-            worker.DoWork += (s, args) =>
+            try
             {
-                var apiKey = "595633FC480CDF8A306F6F9D16E4AF3D";
-                var steamId = this._SteamClient.SteamUser.GetSteamId();
-                int added = 0;
-                var addedGames = new System.Text.StringBuilder();
+                // JavaScript скрипт для автоматического добавления бесплатных игр
+                var script = @"
+// Auto-add all free games on current page
+(function() {
+    let buttons = document.querySelectorAll('.btn_addtocart, .queue_btn_active');
+    let index = 0;
+    
+    function addNext() {
+        if (index >= buttons.length) {
+            alert('Finished! Added ' + index + ' games. Scroll down or go to next page for more.');
+            return;
+        }
+        
+        let btn = buttons[index];
+        if (btn && btn.textContent.includes('Play Game')) {
+            btn.click();
+            console.log('Added game ' + (index + 1) + '/' + buttons.length);
+        }
+        
+        index++;
+        setTimeout(addNext, 1000); // 1 second delay between clicks
+    }
+    
+    addNext();
+})();
+";
 
-                try
-                {
-                    using (var client = new System.Net.WebClient())
-                    {
-                        client.Headers.Add("User-Agent", "ELDEVCREATOR RU STEAM HELP");
-                        
-                        // List of verified free Sub IDs from SteamDB
-                        var freeSubIds = new List<uint>
-                        {
-                            // Valve F2P
-                            0, // Special ID for all F2P games
-                            // Can add specific Sub IDs if needed
-                        };
+                // Копируем скрипт в буфер обмена
+                Clipboard.SetText(script);
 
-                        // Use AddFreeLicense method via Steam Web API
-                        foreach (var subId in freeSubIds)
-                        {
-                            try
-                            {
-                                var url = $"https://api.steampowered.com/IPlayerService/AddFreeLicense/v1/?key={apiKey}&steamid={steamId}&subid={subId}";
-                                var response = client.DownloadString(url);
-                                
-                                if (response.Contains("\"success\":true") || response.Contains("\"result\":1"))
-                                {
-                                    added++;
-                                    addedGames.AppendLine($"Added free games via Sub ID {subId}");
-                                    
-                                    this.Invoke(new Action(() =>
-                                    {
-                                        this._PickerStatusLabel.Text = $"Added: {added}";
-                                    }));
-                                }
-                                
-                                System.Threading.Thread.Sleep(1000);
-                            }
-                            catch (Exception ex)
-                            {
-                                addedGames.AppendLine($"Error for Sub ID {subId}: {ex.Message}");
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    args.Result = new Tuple<int, string, string>(0, null, ex.Message);
-                    return;
-                }
-                
-                args.Result = new Tuple<int, string, string>(added, addedGames.ToString(), null);
-            };
-
-            worker.RunWorkerCompleted += (s, args) =>
-            {
-                this._AddFreeGamesButton.Enabled = true;
-                
-                if (args.Error != null)
-                {
-                    this._PickerStatusLabel.Text = "Error occurred";
-                    MessageBox.Show(
-                        this,
-                        $"An error occurred:\n{args.Error.Message}",
-                        "Error",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
-                    return;
-                }
-
-                var result = (Tuple<int, string, string>)args.Result;
-                
-                if (result.Item3 != null)
-                {
-                    this._PickerStatusLabel.Text = "Error occurred";
-                    MessageBox.Show(
-                        this,
-                        $"An error occurred:\n{result.Item3}",
-                        "Error",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
-                    return;
-                }
-
-                this._PickerStatusLabel.Text = $"Added {result.Item1} free games";
-
-                var message = new System.Text.StringBuilder();
-                message.AppendLine($"Result:");
-                message.AppendLine();
-                message.AppendLine(result.Item2);
-                message.AppendLine("\nCheck your Steam library!");
+                // Открываем Steam Store с фильтром бесплатных игр
+                Process.Start("https://store.steampowered.com/search/?maxprice=free&specials=1");
 
                 MessageBox.Show(
                     this,
-                    message.ToString(),
-                    "Result",
+                    "Steam Store opened with free games filter!\n\n" +
+                    "JavaScript script copied to clipboard.\n\n" +
+                    "HOW TO USE:\n" +
+                    "1. Wait for page to load\n" +
+                    "2. Press F12 to open Developer Console\n" +
+                    "3. Go to 'Console' tab\n" +
+                    "4. Paste script (Ctrl+V) and press Enter\n" +
+                    "5. Script will auto-click 'Play Game' on all games\n" +
+                    "6. Scroll down or go to next page for more games\n\n" +
+                    "The script adds games with 1 second delay to avoid rate limiting.",
+                    "Instructions",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
-            };
 
-            worker.RunWorkerAsync();
+                this._PickerStatusLabel.Text = "Steam Store opened. Use script in browser console.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    this,
+                    $"Error opening Steam Store:\n{ex.Message}",
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         private void OnGameListViewDrawItem(object sender, DrawListViewItemEventArgs e)
