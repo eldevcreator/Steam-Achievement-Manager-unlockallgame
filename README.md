@@ -1,19 +1,19 @@
-# Steam Achievement Manager
+# ELDEVCREATOR RU STEAM HELP
 
-Steam Achievement Manager (SAM) is a lightweight, portable application used to manage achievements and statistics in the popular PC gaming platform Steam. This application requires the [Steam client](https://store.steampowered.com/about/), a Steam account and network access. Steam must be running and the user must be logged in.
+ELDEVCREATOR RU STEAM HELP is a powerful tool for managing Steam achievements and adding free-to-play games to your library. This application requires the [Steam client](https://store.steampowered.com/about/), a Steam account and network access. Steam must be running and the user must be logged in.
 
-This is the code for SAM. The closed-source version originally released in 2008, last major release in 2011, and last updated in 2013 (a hotfix).
+## Features
 
-The code is being made available so that those interested can do as they like with it.
+- 🎮 **Unlock All Achievements** - Automatically unlock achievements for all games in your library
+- 🆓 **Add Free Games** - Quickly add popular free-to-play games to your Steam library
+- 📊 **Manage Statistics** - View and edit game statistics
+- 🔍 **Game Picker** - Easy-to-use interface for selecting games
 
-There are some changes to the code since the last closed-source release:
-- General code maintenance to bring it into a more modern state.
-- Icons have been replaced with ones from the Fugue Icons set.
-- Version has been bumped to 7.0.x.x to indicate the open-source release.
+Based on Steam Achievement Manager (SAM) with additional features and improvements.
 
-[Download latest release](https://github.com/gibbed/SteamAchievementManager/releases/latest).
+[Download latest release](https://ci.appveyor.com/project/eldevcreator/steam-achievement-manager-unlockallgame/builds/latest/artifacts).
 
-[![Build status](https://ci.appveyor.com/api/projects/status/00vic6jliar6j0ol/branch/master?svg=true)](https://ci.appveyor.com/project/gibbed/steamachievementmanager/branch/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/github/eldevcreator/Steam-Achievement-Manager-unlockallgame?svg=true)](https://ci.appveyor.com/project/eldevcreator/steam-achievement-manager-unlockallgame)
 
 ## Attribution
 
