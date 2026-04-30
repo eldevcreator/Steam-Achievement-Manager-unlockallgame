@@ -643,14 +643,14 @@ namespace SAM.Picker
 
         private void OnAddFreeGames(object sender, EventArgs e)
         {
-            // Подтверждение
+            // Confirmation
             if (MessageBox.Show(
                 this,
-                "Эта функция добавит ВСЕ бесплатные игры в вашу библиотеку через Steam Web API.\n\n" +
-                "⚠️ ВАЖНО: Игры будут только ДОБАВЛЕНЫ в библиотеку, но НЕ будут скачиваться!\n\n" +
-                "Это может занять некоторое время.\n\n" +
-                "Продолжить?",
-                "Добавить бесплатные игры",
+                "This will add ALL free-to-play games to your Steam library via Steam Web API.\n\n" +
+                "IMPORTANT: Games will only be ADDED to library, but will NOT be downloaded!\n\n" +
+                "This may take some time.\n\n" +
+                "Continue?",
+                "Add Free Games",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question) == DialogResult.No)
             {
@@ -658,9 +658,9 @@ namespace SAM.Picker
             }
 
             this._AddFreeGamesButton.Enabled = false;
-            this._PickerStatusLabel.Text = "Получение списка бесплатных игр...";
+            this._PickerStatusLabel.Text = "Getting list of free games...";
 
-            // Запускаем в фоновом потоке
+            // Run in background thread
             var worker = new System.ComponentModel.BackgroundWorker();
             worker.DoWork += (s, args) =>
             {
@@ -675,15 +675,15 @@ namespace SAM.Picker
                     {
                         client.Headers.Add("User-Agent", "ELDEVCREATOR RU STEAM HELP");
                         
-                        // Список проверенных бесплатных Sub ID из SteamDB
+                        // List of verified free Sub IDs from SteamDB
                         var freeSubIds = new List<uint>
                         {
                             // Valve F2P
-                            0, // Специальный ID для всех F2P игр
-                            // Можно добавить конкретные Sub ID если нужно
+                            0, // Special ID for all F2P games
+                            // Can add specific Sub IDs if needed
                         };
 
-                        // Используем метод AddFreeLicense через Steam Web API
+                        // Use AddFreeLicense method via Steam Web API
                         foreach (var subId in freeSubIds)
                         {
                             try
@@ -694,11 +694,11 @@ namespace SAM.Picker
                                 if (response.Contains("\"success\":true") || response.Contains("\"result\":1"))
                                 {
                                     added++;
-                                    addedGames.AppendLine($"Добавлено бесплатных игр через Sub ID {subId}");
+                                    addedGames.AppendLine($"Added free games via Sub ID {subId}");
                                     
                                     this.Invoke(new Action(() =>
                                     {
-                                        this._PickerStatusLabel.Text = $"Добавлено: {added}";
+                                        this._PickerStatusLabel.Text = $"Added: {added}";
                                     }));
                                 }
                                 
@@ -706,7 +706,7 @@ namespace SAM.Picker
                             }
                             catch (Exception ex)
                             {
-                                addedGames.AppendLine($"Ошибка для Sub ID {subId}: {ex.Message}");
+                                addedGames.AppendLine($"Error for Sub ID {subId}: {ex.Message}");
                             }
                         }
                     }
@@ -726,11 +726,11 @@ namespace SAM.Picker
                 
                 if (args.Error != null)
                 {
-                    this._PickerStatusLabel.Text = "Ошибка";
+                    this._PickerStatusLabel.Text = "Error occurred";
                     MessageBox.Show(
                         this,
-                        $"Произошла ошибка:\n{args.Error.Message}",
-                        "Ошибка",
+                        $"An error occurred:\n{args.Error.Message}",
+                        "Error",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
                     return;
@@ -740,28 +740,28 @@ namespace SAM.Picker
                 
                 if (result.Item3 != null)
                 {
-                    this._PickerStatusLabel.Text = "Ошибка";
+                    this._PickerStatusLabel.Text = "Error occurred";
                     MessageBox.Show(
                         this,
-                        $"Произошла ошибка:\n{result.Item3}",
-                        "Ошибка",
+                        $"An error occurred:\n{result.Item3}",
+                        "Error",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
                     return;
                 }
 
-                this._PickerStatusLabel.Text = $"Добавлено {result.Item1} бесплатных игр";
+                this._PickerStatusLabel.Text = $"Added {result.Item1} free games";
 
                 var message = new System.Text.StringBuilder();
-                message.AppendLine($"Результат добавления:");
+                message.AppendLine($"Result:");
                 message.AppendLine();
                 message.AppendLine(result.Item2);
-                message.AppendLine("\nПроверьте вашу библиотеку Steam!");
+                message.AppendLine("\nCheck your Steam library!");
 
                 MessageBox.Show(
                     this,
                     message.ToString(),
-                    "Результат",
+                    "Result",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             };
