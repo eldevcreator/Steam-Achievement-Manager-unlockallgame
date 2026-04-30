@@ -646,111 +646,173 @@ namespace SAM.Picker
             // Подтверждение
             if (MessageBox.Show(
                 this,
-                "This will open Steam pages for all free-to-play games that you don't own yet.\n\n" +
-                "You'll need to click 'Play Game' on each page to add them to your library.\n\n" +
-                "Continue?",
-                "Add Free Games",
+                "Эта функция получит список всех бесплатных игр из Steam и откроет их страницы.\n\n" +
+                "Это может занять некоторое время.\n\n" +
+                "Продолжить?",
+                "Добавить бесплатные игры",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question) == DialogResult.No)
             {
                 return;
             }
 
-            // Список популярных F2P игр с достижениями
-            var freeGames = new Dictionary<uint, string>
+            this._AddFreeGamesButton.Enabled = false;
+            this._PickerStatusLabel.Text = "Получение списка бесплатных игр из Steam...";
+
+            // Запускаем в фоновом потоке
+            var worker = new System.ComponentModel.BackgroundWorker();
+            worker.DoWork += (s, args) =>
             {
-                // Топ F2P игры
-                { 570, "Dota 2" },
-                { 730, "Counter-Strike 2" },
-                { 440, "Team Fortress 2" },
-                { 578080, "PUBG: BATTLEGROUNDS" },
-                { 1172470, "Apex Legends" },
-                { 2357570, "Overwatch 2" },
-                { 1966720, "Deadlock" },
-                { 1599340, "Lost Ark" },
-                { 2073850, "NARAKA: BLADEPOINT" },
-                { 1938090, "Call of Duty: Warzone" },
-                { 1623730, "Palworld" },
+                var freeGames = new Dictionary<uint, string>();
                 
-                // MOBA и стратегии
-                { 583950, "Artifact" },
-                { 1269260, "Smite 2" },
-                { 386360, "Smite" },
-                { 813780, "Age of Empires II: Definitive Edition" },
-                
-                // Шутеры
-                { 1172380, "Star Wars: Squadrons" },
-                { 1517290, "Battlefield 2042" },
-                { 1172620, "Sea of Thieves" },
-                
-                // MMO и RPG
-                { 1203220, "NARAKA: BLADEPOINT" },
-                { 1091500, "Cyberpunk 2077" },
-                { 1245620, "ELDEN RING" },
-                { 1174180, "Red Dead Redemption 2" },
-                
-                // Другие популярные
-                { 252490, "Rust" },
-                { 271590, "Grand Theft Auto V" },
-                { 359550, "Rainbow Six Siege" },
-            };
-
-            int added = 0;
-            int alreadyOwned = 0;
-            var addedGames = new System.Text.StringBuilder();
-            var ownedGames = new System.Text.StringBuilder();
-
-            addedGames.AppendLine("Открыты страницы для добавления:");
-            ownedGames.AppendLine("\nУже в библиотеке:");
-
-            foreach (var game in freeGames)
-            {
-                // Проверяем владеем ли мы игрой
-                if (this.OwnsGame(game.Key))
-                {
-                    alreadyOwned++;
-                    ownedGames.AppendLine($"  - {game.Value}");
-                    continue;
-                }
-
-                // Открываем страницу игры в Steam
                 try
                 {
-                    Process.Start($"steam://store/{game.Key}");
-                    added++;
-                    addedGames.AppendLine($"  - {game.Value}");
-                    System.Threading.Thread.Sleep(500); // Задержка между открытиями
+                    // Получаем список всех приложений из Steam
+                    using (var client = new System.Net.WebClient())
+                    {
+                        client.Headers.Add("User-Agent", "Mozilla/5.0");
+                        var json = client.DownloadString("https://api.steampowered.com/ISteamApps/GetAppList/v2/");
+                        
+                        // Парсим JSON (простой парсинг без библиотек)
+                        var apps = json.Split(new[] { "\"appid\":" }, StringSplitOptions.None);
+                        
+                        foreach (var app in apps.Skip(1))
+                        {
+                            try
+                            {
+                                var idStr = app.Substring(0, app.IndexOf(','));
+                                if (uint.TryParse(idStr, out uint appId))
+                                {
+                                    // Проверяем является ли игра бесплатной через Steam Store API
+                                    var nameStart = app.IndexOf("\"name\":\"") + 8;
+                                    var nameEnd = app.IndexOf("\"", nameStart);
+                                    var name = app.Substring(nameStart, nameEnd - nameStart);
+                                    
+                                    // Проверяем только если не владеем игрой
+                                    if (!this.OwnsGame(appId))
+                                    {
+                                        // Проверяем бесплатная ли игра
+                                        try
+                                        {
+                                            var storeData = client.DownloadString($"https://store.steampowered.com/api/appdetails?appids={appId}&cc=ru");
+                                            if (storeData.Contains("\"is_free\":true") && storeData.Contains("\"type\":\"game\""))
+                                            {
+                                                freeGames[appId] = name;
+                                                
+                                                // Обновляем статус
+                                                this.Invoke(new Action(() =>
+                                                {
+                                                    this._PickerStatusLabel.Text = $"Найдено бесплатных игр: {freeGames.Count}";
+                                                }));
+                                                
+                                                System.Threading.Thread.Sleep(100); // Задержка чтобы не забанили
+                                            }
+                                        }
+                                        catch
+                                        {
+                                            // Игнорируем ошибки для конкретной игры
+                                        }
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                                // Игнорируем ошибки парсинга
+                            }
+                        }
+                    }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Игнорируем ошибки
+                    args.Result = new Tuple<Dictionary<uint, string>, string>(null, ex.Message);
+                    return;
                 }
-            }
+                
+                args.Result = new Tuple<Dictionary<uint, string>, string>(freeGames, null);
+            };
 
-            // Формируем итоговое сообщение
-            var message = new System.Text.StringBuilder();
-            message.AppendLine($"Обработано игр: {freeGames.Count}");
-            message.AppendLine($"Открыто страниц: {added}");
-            message.AppendLine($"Уже в библиотеке: {alreadyOwned}");
-            message.AppendLine();
-            
-            if (added > 0)
+            worker.RunWorkerCompleted += (s, args) =>
             {
-                message.AppendLine(addedGames.ToString());
+                this._AddFreeGamesButton.Enabled = true;
+                
+                if (args.Error != null)
+                {
+                    this._PickerStatusLabel.Text = "Ошибка при получении списка игр";
+                    MessageBox.Show(
+                        this,
+                        $"Произошла ошибка:\n{args.Error.Message}",
+                        "Ошибка",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return;
+                }
+
+                var result = (Tuple<Dictionary<uint, string>, string>)args.Result;
+                
+                if (result.Item2 != null)
+                {
+                    this._PickerStatusLabel.Text = "Ошибка при получении списка игр";
+                    MessageBox.Show(
+                        this,
+                        $"Произошла ошибка:\n{result.Item2}",
+                        "Ошибка",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return;
+                }
+
+                var freeGames = result.Item1;
+                
+                if (freeGames.Count == 0)
+                {
+                    this._PickerStatusLabel.Text = "Бесплатные игры не найдены";
+                    MessageBox.Show(
+                        this,
+                        "Не найдено бесплатных игр которых у вас нет.",
+                        "Информация",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Открываем страницы игр
+                int opened = 0;
+                var openedGames = new System.Text.StringBuilder();
+                openedGames.AppendLine("Открыты страницы для добавления:");
+
+                foreach (var game in freeGames.Take(20)) // Ограничиваем 20 играми чтобы не спамить
+                {
+                    try
+                    {
+                        Process.Start($"steam://store/{game.Key}");
+                        opened++;
+                        openedGames.AppendLine($"  - {game.Value}");
+                        System.Threading.Thread.Sleep(500);
+                    }
+                    catch
+                    {
+                        // Игнорируем ошибки
+                    }
+                }
+
+                this._PickerStatusLabel.Text = $"Открыто {opened} страниц бесплатных игр";
+
+                var message = new System.Text.StringBuilder();
+                message.AppendLine($"Найдено бесплатных игр: {freeGames.Count}");
+                message.AppendLine($"Открыто страниц: {opened}");
+                message.AppendLine();
+                message.AppendLine(openedGames.ToString());
                 message.AppendLine("\nНажмите 'Play Game' на каждой странице чтобы добавить игру!");
-            }
-            
-            if (alreadyOwned > 0)
-            {
-                message.AppendLine(ownedGames.ToString());
-            }
 
-            MessageBox.Show(
-                this,
-                message.ToString(),
-                "Результат добавления игр",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+                MessageBox.Show(
+                    this,
+                    message.ToString(),
+                    "Результат",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            };
+
+            worker.RunWorkerAsync();
         }
 
         private void OnGameListViewDrawItem(object sender, DrawListViewItemEventArgs e)
