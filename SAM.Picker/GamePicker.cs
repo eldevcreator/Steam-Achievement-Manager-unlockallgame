@@ -660,28 +660,38 @@ namespace SAM.Picker
             {
                 // JavaScript скрипт для автоматического добавления бесплатных игр
                 var script = @"
-// Auto-add all free games on current page
-(function() {
-    let buttons = document.querySelectorAll('.btn_addtocart, .queue_btn_active');
-    let index = 0;
+// Auto-add all free games on Steam Store page
+(async function() {
+    // Find all 'Play Game' buttons
+    let buttons = Array.from(document.querySelectorAll('a, button, div')).filter(el => 
+        el.textContent.trim() === 'Play Game' || 
+        el.textContent.includes('Play Game') ||
+        el.getAttribute('href')?.includes('/app/')
+    );
     
-    function addNext() {
-        if (index >= buttons.length) {
-            alert('Finished! Added ' + index + ' games. Scroll down or go to next page for more.');
-            return;
+    console.log('Found ' + buttons.length + ' potential game buttons');
+    
+    let added = 0;
+    
+    for (let i = 0; i < buttons.length; i++) {
+        try {
+            let btn = buttons[i];
+            
+            // Try to find the actual play button
+            let playBtn = btn.closest('.search_result_row')?.querySelector('a[href*=""/app/""]');
+            
+            if (playBtn) {
+                console.log('Processing game ' + (i + 1) + '/' + buttons.length);
+                playBtn.click();
+                added++;
+                await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+            }
+        } catch (e) {
+            console.error('Error on button ' + i, e);
         }
-        
-        let btn = buttons[index];
-        if (btn && btn.textContent.includes('Play Game')) {
-            btn.click();
-            console.log('Added game ' + (index + 1) + '/' + buttons.length);
-        }
-        
-        index++;
-        setTimeout(addNext, 1000); // 1 second delay between clicks
     }
     
-    addNext();
+    alert('Finished! Processed ' + buttons.length + ' items, added ' + added + ' games.\n\nScroll down or go to next page for more games.');
 })();
 ";
 
@@ -689,20 +699,21 @@ namespace SAM.Picker
                 Clipboard.SetText(script);
 
                 // Открываем Steam Store с фильтром бесплатных игр
-                Process.Start("https://store.steampowered.com/search/?maxprice=free&specials=1");
+                Process.Start("https://store.steampowered.com/search/?maxprice=free&ndl=1");
 
                 MessageBox.Show(
                     this,
                     "Steam Store opened with free games filter!\n\n" +
                     "JavaScript script copied to clipboard.\n\n" +
                     "HOW TO USE:\n" +
-                    "1. Wait for page to load\n" +
+                    "1. Wait for page to load completely\n" +
                     "2. Press F12 to open Developer Console\n" +
                     "3. Go to 'Console' tab\n" +
                     "4. Paste script (Ctrl+V) and press Enter\n" +
-                    "5. Script will auto-click 'Play Game' on all games\n" +
-                    "6. Scroll down or go to next page for more games\n\n" +
-                    "The script adds games with 1 second delay to avoid rate limiting.",
+                    "5. Script will auto-add all free games on page\n" +
+                    "6. Wait for completion message\n" +
+                    "7. Scroll down or go to next page for more\n\n" +
+                    "Delay: 2 seconds between games to avoid rate limiting.",
                     "Instructions",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
