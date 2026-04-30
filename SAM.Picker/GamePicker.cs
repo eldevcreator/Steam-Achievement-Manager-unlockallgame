@@ -656,7 +656,7 @@ namespace SAM.Picker
                 return;
             }
 
-            // Список популярных F2P игр с достижениями (можно расширить)
+            // Список популярных F2P игр с достижениями
             var freeGames = new Dictionary<uint, string>
             {
                 // Топ F2P игры
@@ -681,13 +681,10 @@ namespace SAM.Picker
                 // Шутеры
                 { 1172380, "Star Wars: Squadrons" },
                 { 1517290, "Battlefield 2042" },
-                { 1938090, "Call of Duty: Warzone" },
-                { 1172470, "Apex Legends" },
                 { 1172620, "Sea of Thieves" },
                 
                 // MMO и RPG
                 { 1203220, "NARAKA: BLADEPOINT" },
-                { 1599340, "Lost Ark" },
                 { 1091500, "Cyberpunk 2077" },
                 { 1245620, "ELDEN RING" },
                 { 1174180, "Red Dead Redemption 2" },
