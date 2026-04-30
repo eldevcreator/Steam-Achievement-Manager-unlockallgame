@@ -576,22 +576,19 @@ namespace SAM.Picker
 
                     try
                     {
-                        // Запускаем SAM.Game для каждой игры
+                        // Запускаем SAM.Game для каждой игры с параметром --unlock-all
                         var process = Process.Start(new ProcessStartInfo
                         {
                             FileName = "SAM.Game.exe",
-                            Arguments = game.Id.ToString(CultureInfo.InvariantCulture),
-                            WindowStyle = ProcessWindowStyle.Hidden
+                            Arguments = $"{game.Id.ToString(CultureInfo.InvariantCulture)} --unlock-all",
+                            WindowStyle = ProcessWindowStyle.Hidden,
+                            CreateNoWindow = true
                         });
 
-                        // Ждем немного чтобы игра загрузилась
-                        System.Threading.Thread.Sleep(2000);
-
-                        // Закрываем процесс
-                        if (process != null && !process.HasExited)
+                        // Ждём пока процесс завершится (максимум 15 секунд)
+                        if (process != null)
                         {
-                            process.CloseMainWindow();
-                            process.WaitForExit(5000);
+                            process.WaitForExit(15000);
                             if (!process.HasExited)
                             {
                                 process.Kill();
@@ -605,7 +602,8 @@ namespace SAM.Picker
                         // Игнорируем ошибки
                     }
 
-                    System.Threading.Thread.Sleep(500);
+                    // Небольшая задержка между играми
+                    System.Threading.Thread.Sleep(200);
                 }
 
                 args.Result = Tuple.Create(processed, totalAchievements);

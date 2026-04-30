@@ -914,5 +914,54 @@ namespace SAM.Game
         {
             this.GetAchievements();
         }
+
+        // Метод для автоматической разблокировки всех достижений (вызывается из командной строки)
+        public void UnlockAllAchievementsAndStore()
+        {
+            // Ждём загрузки статистики
+            var steamId = this._SteamClient.SteamUser.GetSteamId();
+            var callHandle = this._SteamClient.SteamUserStats.RequestUserStats(steamId);
+            
+            if (callHandle == API.CallHandle.Invalid)
+            {
+                return;
+            }
+
+            // Ждём пока статистика загрузится (максимум 10 секунд)
+            int attempts = 0;
+            while (attempts < 100)
+            {
+                this._SteamClient.RunCallbacks(false);
+                System.Threading.Thread.Sleep(100);
+                attempts++;
+
+                // Проверяем загрузились ли достижения
+                if (this._AchievementDefinitions.Count > 0)
+                {
+                    break;
+                }
+            }
+
+            if (this._AchievementDefinitions.Count == 0)
+            {
+                return;
+            }
+
+            // Разблокируем все достижения
+            foreach (var def in this._AchievementDefinitions)
+            {
+                if (string.IsNullOrEmpty(def.Id) == false)
+                {
+                    this._SteamClient.SteamUserStats.SetAchievement(def.Id, true);
+                }
+            }
+
+            // Сохраняем изменения
+            this._SteamClient.SteamUserStats.StoreStats();
+            
+            // Даём время на сохранение
+            System.Threading.Thread.Sleep(1000);
+            this._SteamClient.RunCallbacks(false);
+        }
     }
 }

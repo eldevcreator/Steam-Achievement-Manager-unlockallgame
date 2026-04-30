@@ -32,6 +32,7 @@ namespace SAM.Game
         public static void Main(string[] args)
         {
             long appId;
+            bool unlockAll = false;
 
             if (args.Length == 0)
             {
@@ -47,6 +48,12 @@ namespace SAM.Game
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
                 return;
+            }
+
+            // Проверяем наличие параметра --unlock-all
+            if (args.Length > 1 && args[1] == "--unlock-all")
+            {
+                unlockAll = true;
             }
 
             if (API.Steam.GetInstallPath() == Application.StartupPath)
@@ -109,7 +116,18 @@ namespace SAM.Game
 
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new Manager(appId, client));
+                
+                if (unlockAll)
+                {
+                    // Режим автоматической разблокировки без GUI
+                    var manager = new Manager(appId, client);
+                    manager.UnlockAllAchievementsAndStore();
+                }
+                else
+                {
+                    // Обычный режим с GUI
+                    Application.Run(new Manager(appId, client));
+                }
             }
         }
     }
