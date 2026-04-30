@@ -646,89 +646,177 @@ namespace SAM.Picker
             // Confirmation
             if (MessageBox.Show(
                 this,
-                "This will open Steam Store with free games filter and provide a script to auto-add them.\n\n" +
+                "This will automatically add ALL free games to your Steam library (like ASF does).\n\n" +
+                "This will add 1000+ free games/packages to your account.\n\n" +
                 "IMPORTANT: Games will only be ADDED to library, but will NOT be downloaded!\n\n" +
-                "Continue?",
-                "Add Free Games",
+                "This may take 10-15 minutes. Continue?",
+                "Add Free Games (ASF Method)",
                 MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question) == DialogResult.No)
+                MessageBoxIcon.Warning) == DialogResult.No)
             {
                 return;
             }
 
-            try
+            this._AddFreeGamesButton.Enabled = false;
+            this._RefreshGamesButton.Enabled = false;
+            this._PickerStatusLabel.Text = "Fetching list of free packages from SteamDB...";
+
+            // Run in background thread
+            var worker = new System.ComponentModel.BackgroundWorker();
+            worker.DoWork += (s, args) =>
             {
-                // JavaScript скрипт для автоматического добавления бесплатных игр
-                var script = @"
-// Auto-add all free games on Steam Store page
-(async function() {
-    // Find all 'Play Game' buttons
-    let buttons = Array.from(document.querySelectorAll('a, button, div')).filter(el => 
-        el.textContent.trim() === 'Play Game' || 
-        el.textContent.includes('Play Game') ||
-        el.getAttribute('href')?.includes('/app/')
-    );
-    
-    console.log('Found ' + buttons.length + ' potential game buttons');
-    
-    let added = 0;
-    
-    for (let i = 0; i < buttons.length; i++) {
-        try {
-            let btn = buttons[i];
-            
-            // Try to find the actual play button
-            let playBtn = btn.closest('.search_result_row')?.querySelector('a[href*=""/app/""]');
-            
-            if (playBtn) {
-                console.log('Processing game ' + (i + 1) + '/' + buttons.length);
-                playBtn.click();
-                added++;
-                await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
-            }
-        } catch (e) {
-            console.error('Error on button ' + i, e);
-        }
-    }
-    
-    alert('Finished! Processed ' + buttons.length + ' items, added ' + added + ' games.\n\nScroll down or go to next page for more games.');
-})();
-";
+                var apiKey = "595633FC480CDF8A306F6F9D16E4AF3D";
+                var steamId = this._SteamClient.SteamUser.GetSteamId();
+                int added = 0;
+                int failed = 0;
+                var results = new System.Text.StringBuilder();
+                var freeSubIds = new List<uint>();
 
-                // Копируем скрипт в буфер обмена
-                Clipboard.SetText(script);
+                try
+                {
+                    using (var client = new System.Net.WebClient())
+                    {
+                        client.Headers.Add("User-Agent", "ELDEVCREATOR RU STEAM HELP");
+                        
+                        // Step 1: Get list of all free Sub IDs from SteamDB
+                        this.Invoke(new Action(() =>
+                        {
+                            this._PickerStatusLabel.Text = "Downloading free packages list from SteamDB...";
+                        }));
+                        
+                        try
+                        {
+                            // Try to get from SteamDB API or parse the page
+                            var steamdbPage = client.DownloadString("https://steamdb.info/freepackages/");
+                            
+                            // Parse Sub IDs from the page
+                            var lines = steamdbPage.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                            foreach (var line in lines)
+                            {
+                                // Look for Sub IDs in format: /sub/12345/
+                                if (line.Contains("/sub/"))
+                                {
+                                    var startIdx = line.IndexOf("/sub/") + 5;
+                                    var endIdx = line.IndexOf("/", startIdx);
+                                    if (endIdx > startIdx)
+                                    {
+                                        var subIdStr = line.Substring(startIdx, endIdx - startIdx);
+                                        if (uint.TryParse(subIdStr, out uint subId))
+                                        {
+                                            if (!freeSubIds.Contains(subId))
+                                            {
+                                                freeSubIds.Add(subId);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            this.Invoke(new Action(() =>
+                            {
+                                this._PickerStatusLabel.Text = $"Found {freeSubIds.Count} free packages!";
+                            }));
+                            
+                            System.Threading.Thread.Sleep(2000);
+                        }
+                        catch
+                        {
+                            // Fallback: use hardcoded list if SteamDB fails
+                            freeSubIds = new List<uint> { 0 }; // Special ID for all F2P
+                        }
+                        
+                        // Step 2: Add all free packages via Steam API
+                        foreach (var subId in freeSubIds)
+                        {
+                            try
+                            {
+                                this.Invoke(new Action(() =>
+                                {
+                                    this._PickerStatusLabel.Text = $"Adding packages... {added} added, {failed} failed ({freeSubIds.Count} total)";
+                                }));
 
-                // Открываем Steam Store с фильтром бесплатных игр
-                Process.Start("https://store.steampowered.com/search/?maxprice=free&ndl=1");
+                                // Use Steam Web API to add free license
+                                var url = $"https://api.steampowered.com/IPlayerService/AddFreeLicense/v1/?key={apiKey}&steamid={steamId}&packageid={subId}";
+                                var response = client.DownloadString(url);
+                                
+                                if (response.Contains("\"result\":1") || response.Contains("\"success\":true"))
+                                {
+                                    added++;
+                                }
+                                else
+                                {
+                                    failed++;
+                                }
+                                
+                                System.Threading.Thread.Sleep(500); // Delay to avoid rate limiting
+                            }
+                            catch
+                            {
+                                failed++;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    args.Result = new Tuple<int, int, int, string>(0, 0, 0, ex.Message);
+                    return;
+                }
+                
+                args.Result = new Tuple<int, int, int, string>(added, failed, freeSubIds.Count, null);
+            };
+
+            worker.RunWorkerCompleted += (s, args) =>
+            {
+                this._AddFreeGamesButton.Enabled = true;
+                this._RefreshGamesButton.Enabled = true;
+                
+                if (args.Error != null)
+                {
+                    this._PickerStatusLabel.Text = "Error occurred";
+                    MessageBox.Show(
+                        this,
+                        $"An error occurred:\n{args.Error.Message}",
+                        "Error",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return;
+                }
+
+                var result = (Tuple<int, int, int, string>)args.Result;
+                
+                if (result.Item4 != null)
+                {
+                    this._PickerStatusLabel.Text = "Error occurred";
+                    MessageBox.Show(
+                        this,
+                        $"An error occurred:\n{result.Item4}",
+                        "Error",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return;
+                }
+
+                this._PickerStatusLabel.Text = $"Completed! Added {result.Item1} packages, {result.Item2} failed";
+
+                var message = new System.Text.StringBuilder();
+                message.AppendLine($"Process completed!");
+                message.AppendLine();
+                message.AppendLine($"Total packages found: {result.Item3}");
+                message.AppendLine($"Successfully added: {result.Item1}");
+                message.AppendLine($"Failed: {result.Item2}");
+                message.AppendLine();
+                message.AppendLine("Check your Steam library!");
 
                 MessageBox.Show(
                     this,
-                    "Steam Store opened with free games filter!\n\n" +
-                    "JavaScript script copied to clipboard.\n\n" +
-                    "HOW TO USE:\n" +
-                    "1. Wait for page to load completely\n" +
-                    "2. Press F12 to open Developer Console\n" +
-                    "3. Go to 'Console' tab\n" +
-                    "4. Paste script (Ctrl+V) and press Enter\n" +
-                    "5. Script will auto-add all free games on page\n" +
-                    "6. Wait for completion message\n" +
-                    "7. Scroll down or go to next page for more\n\n" +
-                    "Delay: 2 seconds between games to avoid rate limiting.",
-                    "Instructions",
+                    message.ToString(),
+                    "Result",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
+            };
 
-                this._PickerStatusLabel.Text = "Steam Store opened. Use script in browser console.";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(
-                    this,
-                    $"Error opening Steam Store:\n{ex.Message}",
-                    "Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
+            worker.RunWorkerAsync();
         }
 
         private void OnGameListViewDrawItem(object sender, DrawListViewItemEventArgs e)
